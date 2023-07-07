@@ -17,6 +17,7 @@ for row in ws1.iter_rows(min_row=9,min_col=1,max_col=2):
         ws1['C' + str(row[1].row)] = 10
 # book.save(r'原始数据.xlsx')
 
+
 '''
 （2）在Sheet1中，计算汽车在停车库中的停放时间。要求：* 计算方法为：“停放时间=出库时间-入库时间”。* 格式为：“小时：分钟：秒”。* 将结果保存在“停车情况记录表”中的“停放时间”列中。（2分）
 （3）对“停车情况记录表”的停车费用进行计算。要求：* 根据Sheet1停放时间的长短计算停车费用，将计算结果填入到“停车情况记录表”的“应付金额”列中。
@@ -57,8 +58,6 @@ df['停放时间'] = df['停放时间'].map(timeformat)
 print(df)
 print(df.info())
 
-# with pd.ExcelWriter(r'原始数据.xlsx',engine='openpyxl',mode='a',if_sheet_exists='overlay') as writer:
-#     df.loc[:, '停放时间':'应付金额'].to_excel(writer,sheet_name='Sheet1',startrow=8,startcol=5,index=False,header=False)
 
 '''
 （4）根据统计情况描述（I8，I9），补充完成统计结果（J8，J9）。（2分）
@@ -71,20 +70,7 @@ book = load_workbook(r'原始数据.xlsx')
 ws1 = book['Sheet1']
 ws1['J8']=df_q
 ws1['J9']=df_max
-# book.save(r'原始数据.xlsx')
-
-
-'''
-（5）	对Sheet2的数据绘制散点图，并绘制拟合曲线。其中，X是自变量，Y是因变量，拟合Y对于X的函数。提示：Y是X的二次函数。（10分）
-'''
-df2 = pd.read_excel(r'原始数据.xlsx',sheet_name='Sheet2')
-df2 = df2.sort_values('X')
-plt.rcParams['font.sans-serif']=['KaiTi']
-plt.scatter(df2['X'],df2['Y'],label='y=x^2')
-plt.plot(df2['X'],df2['Y'],'r--')
-plt.xlabel('X',labelpad=10)
-plt.ylabel('y=x^2',labelpad=10)
-plt.show()
+book.save(r'原始数据.xlsx')
 
 
 
