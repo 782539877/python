@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 '''
 book = load_workbook(r'原始数据.xlsx')
 ws1 = book['Sheet1']
+# 单价列 
 for row in ws1.iter_rows(min_row=9,min_col=1,max_col=2):
     if row[1].value == '小汽车':
         ws1['C'+str(row[1].row)]=5
@@ -15,7 +16,7 @@ for row in ws1.iter_rows(min_row=9,min_col=1,max_col=2):
         ws1['C' + str(row[1].row)] = 8
     else:
         ws1['C' + str(row[1].row)] = 10
-# book.save(r'原始数据.xlsx')
+book.save(r'原始数据.xlsx')
 
 
 '''
@@ -26,17 +27,18 @@ for row in ws1.iter_rows(min_row=9,min_col=1,max_col=2):
 * 例如1小时23分，将以2小时计费。（4分）
 '''
 df = pd.read_excel(r'原始数据.xlsx', sheet_name='Sheet1', header=7, usecols=range(2, 7))
+# 停放时间列
 # 先把时间列转换为datetime格式，才能计算时间差，得出的结果是timedelta格式
-# timedelta数据类型,只能.days和.seconds提取时间再进行计算转换其他格式
+# timedelta数据类型,只能使用.days或.seconds提取时间再进行计算转换其他格式
 df['入库时间'] = pd.to_datetime(df['入库时间'], format='%H:%M:%S')
 df['出库时间'] = pd.to_datetime(df['出库时间'], format='%H:%M:%S')
 df['停放时间'] = df['出库时间'] - df['入库时间']
 
-# 应付金额
+# 应付金额列
 def paypark(x):
-    h = int(x['停放时间'].seconds / 3600)
-    m = int((x['停放时间'].seconds % 3600) / 60)
-    s = (x['停放时间'].seconds % 3600) % 60
+    h = int(x['停放时间'].seconds / 3600) # 将timedelta数据格式转化为秒并提取小时部分
+    m = int((x['停放时间'].seconds % 3600) / 60) # 提取分钟部分
+    s = (x['停放时间'].seconds % 3600) % 60 # 提取秒部分
     if h == 0:
         pay = x['单价']
     elif m >= 15 and h > 0:
@@ -46,7 +48,7 @@ def paypark(x):
     return pay
 df['应付金额'] = df.apply(paypark,axis=1)
 
-# 停放时间
+# 停放时间的格式化
 def timeformat(x):
     h = int(x.seconds / 3600)
     m = int((x.seconds % 3600) / 60)
@@ -55,17 +57,19 @@ def timeformat(x):
 
 df['停放时间'] = df['停放时间'].map(timeformat)
 
-print(df)
-print(df.info())
+# print(df)
+# print(df.info())
 
 
 '''
 （4）根据统计情况描述（I8，I9），补充完成统计结果（J8，J9）。（2分）
 '''
 df1 = pd.read_excel(r'原始数据.xlsx',sheet_name='Sheet1',usecols=[0,6],header=7)
+# 停车费用大于等于40元的停车记录条数
 df_q=df1.query('应付金额>=40').车牌号.count()
+# 最高的停车费用
 df_max = df1['应付金额'].max()
-
+# 将数据写入指定单元格位置
 book = load_workbook(r'原始数据.xlsx')
 ws1 = book['Sheet1']
 ws1['J8']=df_q
