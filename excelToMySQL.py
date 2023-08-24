@@ -3,7 +3,6 @@ import pandas as pd
 import os
 import time
 
-
 '''
 定义函数get_file
 可以获取指定文件夹中所有excel路径名，参数file_dir为该文件夹路径
@@ -49,25 +48,24 @@ def fileTodb(path):
         field_name = df.columns.tolist()  # 读取字段名，同时将列表格式转化为字符串格式
         field_num = df.columns.size  # 计算字段个数
 
-        # 计算行数
-        # row_num = df.shape[0]
-        # # 计算列数
-        # col_num = df.shape[1]
-
-        # 设置zhanweifu、colname为空字符串，用来拼接sql语句
+        # 设置zhanweifu、colname、upcol为空字符串，用来拼接sql语句
         zhanweifu = ""
         colname = ""
+        upcol = ""
         for i in range(0, field_num - 1):
             colname += "`" + str(field_name[i]) + "`,"
             zhanweifu += "%s,"
+            upcol += "`" + str(field_name[i + 1]) + "`=%s,"
         colname += "`" + str(field_name[i + 1]) + "`"
         zhanweifu += "%s"
+        upcol = upcol[:len(upcol) - 1]  # 去掉最后逗号
         sheetname = "`" + sheetname + "`"
 
-        # 准备查插改语句
+        # 准备增删改查语句
         select = "select * from " + sheetname + ";"
         ins_sql = "insert into " + sheetname + "(" + colname + ")" + " values" + "(" + zhanweifu + ");"
-        upd_sql = "update " + sheetname + " set " + colname + "=%s" + " where "
+        upd_sql = "update " + sheetname + " set " + upcol + " where `" + field_name[0] + "`=%s;"
+        del_sql = "delete from " + sheetname + "where " + field_name[0] + "=%s;"
 
         '''
         【python连接数据库的基本步骤】
@@ -80,7 +78,7 @@ def fileTodb(path):
         7.关闭连接
         '''
         # 创建连接器
-        db = pymysql.connect(host="192.168.10.124", user="root", password="ruolin2023", db="ruolindb", port=3306,
+        db = pymysql.connect(host="your ip", user="your user", password="your password", db="your dbname", port=3306,
                              charset="utf8")
 
         '''
@@ -104,19 +102,23 @@ def fileTodb(path):
                     # 将db和df的key转换为set
                     db_set = {row[0] for row in result}
                     df_set = set(df.iloc[:, 0])
-                    # 计算交集和差集部分，即区分将要更改或插入的数据
+                    # 计算交集和差集部分，即区分将要更改、插入和删除的数据
                     upd_set = df_set & db_set
                     ins_set = df_set - db_set  # 以df为主表，即如果df_set有不在db_set的元素就是要插入数据的key值
-                    # print("db_set\n", db_set, len(db_set))
-                    # print("df_set\n", df_set, len(df_set))
-                    # print("ins_set\n", ins_set, len(ins_set))
+                    del_set = db_set - df_set  # 以db为主表，即如果db_set有不在df_set的元素就是要删除数据的key值
 
-                    # if upd_set == {}:
-                    #     break
-                    # else:
-                    #     upd_df = df[df[field_name[0]].isin(upd_set)]  # 根据upd_set筛选df数据
-                    #     upd_data = upd_df.apply(lambda x: tuple(x), axis=1).values.tolist()
-                    #     # cursor.executemany(upd_sql, upd_data)
+                    # print("upd_set\n", upd_set, len(upd_set))
+                    # print("ins_set\n", ins_set, len(ins_set))
+                    # print("del_set\n", del_set, len(del_set))
+
+                    if upd_set == {}:
+                        break
+                    else:
+                        upd_df = df[df[field_name[0]].isin(upd_set)]  # 根据upd_set筛选df数据
+                        new_cols = field_name[1:] + [field_name[0]]  # 把key列放到最后，用来update数据库的
+                        upd_df = upd_df[new_cols]  # 修改df的列位置
+                        upd_data = upd_df.apply(lambda x: tuple(x), axis=1).values.tolist()
+                        cursor.executemany(upd_sql, upd_data)
 
                     if ins_set == {}:
                         break
@@ -124,6 +126,12 @@ def fileTodb(path):
                         ins_df = df[df[field_name[0]].isin(ins_set)]  # 根据ins_set元素筛选df数据
                         ins_data = ins_df.apply(lambda x: tuple(x), axis=1).values.tolist()
                         cursor.executemany(ins_sql, ins_data)
+
+                    if del_set == {}:
+                        break
+                    else:
+                        del_list = [dtime.strftime('%Y-%m-%d') for dtime in del_set]
+                        cursor.executemany(del_sql, del_list)
 
                 db.commit()
 
@@ -137,27 +145,11 @@ def fileTodb(path):
             db.close()  # 关闭连接
 
 
-# 执行主函数，利用windows的定时任务工具实现自动化
+# 执行主函数，利用windows的任务计划程序实现自动化
 if __name__ == "__main__":
     get_file(r'D:\公司共享文件夹\services2023\自动上传(勿删)')
     for path in file_name:
         fileTodb(path)
     time.sleep(3)
 
-# 执行主函数，调用以上两个函数，利用时间函数实现自动化
-# if __name__ == '__main__':
-#     # 调用get_file()函数
-#     get_file(r'C:\Users\Wendy\Desktop\pd')
-#     now_time = dt.now()  # 获取当前系统日期和时间
-#     now_date = now_time.day  # 获取当前系统日期的日
-#     # 当打开程序文件时，while语句会一直循环执行
-#     while True:
-#         if now_time.minute + now_time.hour * 60 > 5 + 8 * 60 and now_date <= dt.now().day:
-#             # for循环将所有excel的所有sheet批量上传
-#             for path in file_name:
-#                 # 调用fileTodb()函数
-#                 fileTodb(path)
-#             now_date = now_date + 1
-#         # 每隔60s打印一次
-#         print(now_date)
-#         time.sleep(60)
+
